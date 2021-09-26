@@ -13,7 +13,12 @@ import { Provider } from "../types/provider";
 import { ServerlessPluginCommand } from "../types/serverless-plugin-command";
 import { writeFileSync } from "fs";
 
-const getConfig = (port = "9234", statsPort = "9235", region = "us-west-2") => {
+const getConfig = (
+  port = "9234",
+  statsPort = "9235",
+  region = "us-west-2",
+  accountId = "000000000000",
+) => {
   return `
 include classpath("application.conf")
 
@@ -55,7 +60,7 @@ queues-storage {
 # Region and accountId which will be included in resource ids
 aws {
   region = ${region}
-  accountId = 000000000000
+  accountId = ${accountId}
 }
 `;
 };
