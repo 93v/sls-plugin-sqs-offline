@@ -10,11 +10,7 @@ import { Provider } from "../types/provider";
 import { ServerlessPluginCommand } from "../types/serverless-plugin-command";
 import { writeFileSync } from "fs";
 
-const getConfig = (
-  port: string = "9234",
-  statsPort = "9235",
-  region = "us-west-2",
-) => {
+const getConfig = (port = "9234", statsPort = "9235", region = "us-west-2") => {
   return `
 include classpath("application.conf")
 
