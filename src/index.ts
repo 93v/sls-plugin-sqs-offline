@@ -1,5 +1,8 @@
-import { SQS, Lambda } from "aws-sdk/clients/all";
-import { ClientConfiguration } from "aws-sdk/clients/lambda";
+import {
+  SQS,
+  // Lambda
+} from "aws-sdk/clients/all";
+// import { ClientConfiguration } from "aws-sdk/clients/lambda";
 import { ChildProcess, spawn } from "child_process";
 import { join } from "path";
 import Serverless from "serverless";
@@ -59,10 +62,10 @@ aws {
 
 const SQS_LOCAL_PATH = join(__dirname, "../bin");
 
-const DEFAULT_READ_INTERVAL = 500;
+// const DEFAULT_READ_INTERVAL = 500;
 
-const pause = async (duration: number) =>
-  new Promise((r) => setTimeout(r, duration));
+// const pause = async (duration: number) =>
+//   new Promise((r) => setTimeout(r, duration));
 
 class ServerlessSQSOfflinePlugin {
   public readonly commands: Record<string, ServerlessPluginCommand>;
