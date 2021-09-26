@@ -72,5 +72,10 @@
   "dependencies": {
     "aws-sdk": "^2.995.0",
     "serverless": "^1.83.3"
+  },
+  "release": {
+    "branches": [
+      "main"
+    ]
   }
 }
