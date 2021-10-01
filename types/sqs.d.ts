@@ -23,6 +23,7 @@ export interface SQSLaunchOptions {
   inMemory?: boolean | null;
   optimizeDbBeforeStartup?: boolean | null;
   port?: number | string | null;
+  statsPort?: number | string | null;
   host?: string | null;
   sharedDb?: boolean | null;
 

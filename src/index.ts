@@ -1,76 +1,13 @@
-import {
-  SQS,
-  // Lambda
-} from "aws-sdk/clients/all";
-// import { ClientConfiguration } from "aws-sdk/clients/lambda";
+import { SQS } from "aws-sdk";
 import { ChildProcess, spawn } from "child_process";
+import { writeFileSync } from "fs";
 import { join } from "path";
 import Serverless from "serverless";
 
 import { IStacksMap, Stack } from "../types/additional-stack";
-import { SQSConfig, SQSLaunchOptions, Stream } from "../types/sqs";
 import { Provider } from "../types/provider";
 import { ServerlessPluginCommand } from "../types/serverless-plugin-command";
-import { writeFileSync } from "fs";
-
-const getConfig = (
-  port = "9234",
-  statsPort = "9235",
-  region = "us-west-2",
-  accountId = "000000000000",
-) => {
-  return `
-include classpath("application.conf")
-
-# What is the outside visible address of this ElasticMQ node
-# Used to create the queue URL (may be different from bind address!)
-node-address {
-  protocol = http
-  host = localhost
-  port = ${port}
-  context-path = ""
-}
-
-rest-sqs {
-  enabled = true
-  bind-port = ${port}
-  bind-hostname = "0.0.0.0"
-  # Possible values: relaxed, strict
-  sqs-limits = strict
-}
-
-rest-stats {
-  enabled = true
-  bind-port = ${statsPort}
-  bind-hostname = "0.0.0.0"
-}
-
-# Should the node-address be generated from the bind port/hostname
-# Set this to true e.g. when assigning port automatically by using port 0.
-generate-node-address = false
-
-queues {
-  # See next sections
-}
-
-queues-storage {
-  # See next sections
-}
-
-# Region and accountId which will be included in resource ids
-aws {
-  region = ${region}
-  accountId = ${accountId}
-}
-`;
-};
-
-const SQS_LOCAL_PATH = join(__dirname, "../bin");
-
-// const DEFAULT_READ_INTERVAL = 500;
-
-// const pause = async (duration: number) =>
-//   new Promise((r) => setTimeout(r, duration));
+import { SQSConfig, SQSLaunchOptions, Stream } from "../types/sqs";
 
 class ServerlessSQSOfflinePlugin {
   public readonly commands: Record<string, ServerlessPluginCommand>;
@@ -99,18 +36,75 @@ class ServerlessSQSOfflinePlugin {
     ).resources;
 
     this.hooks = {
-      "before:offline:start:end": this.stopSQS,
       "before:offline:start:init": this.startSQS,
+      "before:offline:start:end": this.stopSQS,
     };
   }
+
+  private buildConfig = (
+    port = "9234",
+    statsPort = "9235",
+    region = "us-west-2",
+    accountId = "000000000000",
+    sqsLimits: "relaxed" | "strict" = "strict",
+  ) => {
+    return `include classpath("application.conf")
+
+# What is the outside visible address of this ElasticMQ node
+# Used to create the queue URL (may be different from bind address!)
+node-address {
+  protocol = http
+  host = localhost
+  port = ${port}
+  context-path = ""
+}
+
+rest-sqs {
+  enabled = true
+  bind-port = ${port}
+  bind-hostname = "0.0.0.0"
+  sqs-limits = ${sqsLimits}
+}
+
+rest-stats {
+  enabled = true
+  bind-port = ${statsPort}
+  bind-hostname = "0.0.0.0"
+}
+
+# Should the node-address be generated from the bind port/hostname
+# Set this to true e.g. when assigning port automatically by using port 0.
+generate-node-address = false
+
+queues {
+  # See next sections
+}
+
+queues-storage {
+  # See next sections
+}
+
+# Region and accountId which will be included in resource ids
+aws {
+  region = ${region}
+  accountId = ${accountId}
+}
+`;
+  };
 
   private spawnSQSProcess = async (options: SQSLaunchOptions) => {
     // We are trying to construct something like this:
     // java -D"config.file=custom.conf" -jar elasticmq-server.jar
 
     const port = (options.port || 9324).toString();
+    const statsPort = (options.statsPort || 9324).toString();
 
-    writeFileSync(`${SQS_LOCAL_PATH}/custom.conf`, getConfig(port));
+    const SQS_LOCAL_PATH = join(__dirname, "../bin");
+
+    writeFileSync(
+      `${SQS_LOCAL_PATH}/custom.conf`,
+      this.buildConfig(port, statsPort),
+    );
 
     const args = [];
 
@@ -123,36 +117,10 @@ class ServerlessSQSOfflinePlugin {
     }
 
     args.push(
-      `-D"jconfig.file=${SQS_LOCAL_PATH}/custom.conf"`,
+      `-D"config.file=${SQS_LOCAL_PATH}/custom.conf"`,
       "-jar",
       "elasticmq-server.jar",
     );
-
-    // if (options.cors != null) {
-    //   args.push("-cors", options.cors);
-    // }
-
-    // if (options.sqsPath != null) {
-    //   args.push("-sqsPath", options.sqsPath);
-    // } else {
-    //   args.push("-inMemory");
-    // }
-
-    // if (options.delayTransientStatuses) {
-    //   args.push("-delayTransientStatuses");
-    // }
-
-    // if (options.optimizeDbBeforeStartup) {
-    //   args.push("-optimizeDbBeforeStartup");
-    // }
-
-    // if (port != null) {
-    //   args.push("-port", port.toString());
-    // }
-
-    // if (options.sharedDb) {
-    //   args.push("-sharedDb");
-    // }
 
     const proc = spawn("java", args, {
       cwd: SQS_LOCAL_PATH,
@@ -186,121 +154,16 @@ class ServerlessSQSOfflinePlugin {
       });
     });
 
-    return { proc, port };
+    return { proc, port, statsPort };
   };
 
   private killSQSProcess = (options: SQSLaunchOptions) => {
     const port = (options.port || 9324).toString();
-
     if (this.sqsInstances[port] != null) {
       this.sqsInstances[port].kill("SIGKILL");
       delete this.sqsInstances[port];
     }
   };
-
-  // private createDBStreamReadable = async (
-  //   functionName: string,
-  //   stream: Stream,
-  // ) => {
-  //   this.serverless.cli.log(
-  //     `Create stream for ${functionName} on ${stream.tableName}`,
-  //   );
-
-  //   const tableDescription = await this.sqsClient
-  //     ?.describeTable({ TableName: stream.tableName })
-  //     .promise();
-
-  //   const streamArn = tableDescription?.Table?.LatestStreamArn;
-
-  //   if (streamArn == null) {
-  //     return;
-  //   }
-
-  //   // Do not await to not block the rest of the serverless offline execution
-  //   Promise.allSettled(
-  //     streamDescription.StreamDescription.Shards.map(async (shard) => {
-  //       if (shard.ShardId == null) {
-  //         return;
-  //       }
-
-  //       if (this.dbStreamsClient == null) {
-  //         return;
-  //       }
-
-  //       const shardIteratorType = stream.startingPosition || "TRIM_HORIZON";
-
-  //       const getIteratorParams: GetShardIteratorInput = {
-  //         ShardId: shard.ShardId,
-  //         StreamArn: streamArn,
-  //         ShardIteratorType: shardIteratorType,
-  //       };
-
-  //       if (this.sqsConfig.stream?.iterator) {
-  //         getIteratorParams.ShardIteratorType = this.sqsConfig.stream?.iterator;
-  //       } else if (this.sqsConfig.stream?.startAt) {
-  //         getIteratorParams.ShardIteratorType = "AT_SEQUENCE_NUMBER";
-  //         getIteratorParams.SequenceNumber = this.sqsConfig.stream?.startAt;
-  //       } else if (this.sqsConfig.stream?.startAfter) {
-  //         getIteratorParams.ShardIteratorType = "AFTER_SEQUENCE_NUMBER";
-  //         getIteratorParams.SequenceNumber = this.sqsConfig.stream?.startAfter;
-  //       } else {
-  //         getIteratorParams.ShardIteratorType = "LATEST";
-  //       }
-
-  //       const iterator = await this.dbStreamsClient
-  //         .getShardIterator(getIteratorParams)
-  //         .promise();
-
-  //       if (iterator.ShardIterator == null) {
-  //         return;
-  //       }
-
-  //       let shardIterator = iterator.ShardIterator;
-
-  //       // eslint-disable-next-line no-constant-condition
-  //       while (true) {
-  //         const getRecordsParams: GetRecordsInput = {
-  //           ShardIterator: shardIterator,
-  //           Limit: stream.batchSize || 20,
-  //         };
-
-  //         const records = await this.dbStreamsClient
-  //           .getRecords(getRecordsParams)
-  //           .promise();
-
-  //         if (records.NextShardIterator != null) {
-  //           shardIterator = records.NextShardIterator;
-  //         }
-
-  //         if (records.Records != null && records.Records.length) {
-  //           const lambdaParams: ClientConfiguration = {
-  //             endpoint: `http://localhost:${
-  //               this.serverless.service.custom["serverless-offline"]
-  //                 .lambdaPort || 3002
-  //             }`,
-  //             region: this.sqsConfig.start.region || "local",
-  //           };
-
-  //           const lambda = new Lambda(lambdaParams);
-
-  //           const params = {
-  //             FunctionName: `${this.serverless.service["service"]}-${this.serverless.service.provider.stage}-${functionName}`,
-  //             InvocationType: "Event",
-  //             Payload: JSON.stringify(records),
-  //           };
-
-  //           await lambda.invoke(params).promise();
-  //         }
-
-  //         await pause(
-  //           this.sqsConfig.stream?.readInterval || DEFAULT_READ_INTERVAL,
-  //         );
-  //       }
-  //     }),
-  //   ).then((r) => {
-  //     this.serverless.cli.log(r.length.toString());
-  //   });
-  // };
 
   private startSQS = async () => {
     if (this.sqsConfig.start.noStart) {
@@ -308,16 +171,16 @@ class ServerlessSQSOfflinePlugin {
         "SQS Offline - [noStart] options is true. Will not start.",
       );
     } else {
-      const { port, proc } = await this.spawnSQSProcess(this.sqsConfig.start);
-
+      const { port, proc, statsPort } = await this.spawnSQSProcess(
+        this.sqsConfig.start,
+      );
       proc.on("close", (code) => {
         this.serverless.cli.log(
           `SQS Offline - Failed to start with code ${code}`,
         );
       });
-
       this.serverless.cli.log(
-        `SQS Offline - Started, visit: http://localhost:${port}/shell`,
+        `SQS Offline - Started on port ${port}. Visit: http://localhost:${statsPort} for stats`,
       );
     }
 

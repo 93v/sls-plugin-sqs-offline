@@ -12,7 +12,7 @@
     "watch": "tsc -w",
     "start": "npm link && nodemon",
     "make_bin": "mkdir -p bin",
-    "download": "curl -o bin/elasticmq-server.jar https://s3-eu-west-1.amazonaws.com/softwaremill-public/elasticmq-server-1.2.1.jar",
+    "download": "dotenv -- sh -c 'curl -o bin/elasticmq-server.jar https://s3-eu-west-1.amazonaws.com/softwaremill-public/elasticmq-server-$ELASTICMQ_VERSION.jar'",
     "postinstall": "npm run make_bin && cd bin && npm run download",
     "semantic-release": "semantic-release"
   },
@@ -54,6 +54,7 @@
     "@types/serverless": "^1.78.35",
     "@typescript-eslint/eslint-plugin": "^4.31.2",
     "@typescript-eslint/parser": "^4.31.2",
+    "dotenv-cli": "^4.0.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^4.0.0",
