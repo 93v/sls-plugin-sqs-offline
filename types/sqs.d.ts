@@ -5,7 +5,7 @@ export interface SQSConfig {
 }
 
 interface SQSStartConfig extends SQSLaunchOptions {
-  migrate?: boolean | null;
+  autoCreate?: boolean | null;
   // seed?: boolean | null;
   noStart?: boolean | null;
 }
@@ -17,15 +17,10 @@ interface SQSStreamConfig {
 }
 
 export interface SQSLaunchOptions {
-  cors?: string | null;
-  sqsPath?: string | null;
-  delayTransientStatuses?: boolean | null;
-  inMemory?: boolean | null;
-  optimizeDbBeforeStartup?: boolean | null;
   port?: number | string | null;
   statsPort?: number | string | null;
   host?: string | null;
-  sharedDb?: boolean | null;
+  accountId?: string | null;
 
   heapInitial?: string | null;
   heapMax?: string | null;
@@ -35,11 +30,9 @@ export interface SQSLaunchOptions {
   region?: string | null;
 }
 
-export interface Stream {
-  enabled: boolean;
-  type: string;
+export interface Queue {
   arn: Record<string, string>;
-  tableName: string;
   batchSize: number;
-  startingPosition: string;
+  maximumBatchingWindow: number;
+  queueName: string;
 }

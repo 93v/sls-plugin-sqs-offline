@@ -52,8 +52,10 @@
     "@types/jest": "^27.0.2",
     "@types/node": "^14.17.19",
     "@types/serverless": "^1.78.35",
+    "@types/tcp-port-used": "^1.0.0",
     "@typescript-eslint/eslint-plugin": "^4.31.2",
     "@typescript-eslint/parser": "^4.31.2",
+    "cross-env": "^7.0.3",
     "dotenv-cli": "^4.0.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
@@ -72,7 +74,8 @@
   ],
   "dependencies": {
     "aws-sdk": "^2.995.0",
-    "serverless": "^1.83.3"
+    "serverless": "^1.83.3",
+    "tcp-port-used": "^1.0.2"
   },
   "release": {
     "branches": [
