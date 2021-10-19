@@ -69,7 +69,8 @@
     "typescript": "^4.4.3"
   },
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    ".env"
   ],
   "dependencies": {
     "aws-sdk": "^2.995.0",
