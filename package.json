@@ -56,7 +56,6 @@
     "@typescript-eslint/eslint-plugin": "^4.31.2",
     "@typescript-eslint/parser": "^4.31.2",
     "cross-env": "^7.0.3",
-    "dotenv-cli": "^4.0.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^4.0.0",
@@ -74,6 +73,7 @@
   ],
   "dependencies": {
     "aws-sdk": "^2.995.0",
+    "dotenv-cli": "^4.0.0",
     "serverless": "^1.83.3",
     "tcp-port-used": "^1.0.2"
   },
