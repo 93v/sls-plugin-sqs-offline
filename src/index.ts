@@ -278,11 +278,31 @@ aws {
 
           const params = {
             FunctionName: `${this.serverless.service["service"]}-${this.serverless.service.provider.stage}-${functionName}`,
-            InvocationType: "Event",
+            InvocationType: "RequestResponse", // get lambda response to know if there was an error or not
             Payload: JSON.stringify(sqsEvent),
           };
 
-          await lambda.invoke(params).promise();
+          try {
+            const resp = await lambda.invoke(params).promise();
+
+            if (!resp.FunctionError) {
+              await this.sqsClient
+                ?.deleteMessageBatch({
+                  Entries: messages.Messages.map(
+                    ({ MessageId: Id, ReceiptHandle }) => ({
+                      Id: Id as string,
+                      ReceiptHandle: ReceiptHandle as string
+                    })
+                  ),
+                  QueueUrl: queueUrl.QueueUrl
+                })
+                .promise();
+            }
+          } catch (error) {
+            this.serverless.cli.log(
+              `SQS Offline - Lambda [${params.FunctionName}] failed - Message: ${(error as any).message}`,
+            );
+          }
         }
       }
 
