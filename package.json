@@ -50,7 +50,7 @@
     "@commitlint/cli": "^13.1.0",
     "@commitlint/config-conventional": "^13.1.0",
     "@types/jest": "^27.0.2",
-    "@types/node": "^14.17.19",
+    "@types/node": "^16.11.4",
     "@types/serverless": "^1.78.35",
     "@types/tcp-port-used": "^1.0.0",
     "@typescript-eslint/eslint-plugin": "^4.31.2",
