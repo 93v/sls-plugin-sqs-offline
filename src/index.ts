@@ -194,7 +194,7 @@ aws {
         const messages = await this.sqsClient
           ?.receiveMessage({
             QueueUrl: queueUrl.QueueUrl,
-            MaxNumberOfMessages: q.batchSize,
+            MaxNumberOfMessages: q.batchSize ? Math.min(10, q.batchSize) : 1,
           })
           .promise();
 
@@ -282,29 +282,38 @@ aws {
             Payload: JSON.stringify(sqsEvent),
           };
 
-          try {
-            const resp = await lambda.invoke(params).promise();
+          lambda
+            .invoke(params)
+            .promise()
+            .then((response) => {
+              if (response.StatusCode !== 200) {
+                this.serverless.cli.log(
+                  `Error while processing SQS message for ${functionName}`,
+                );
+              } else {
+                this.serverless.cli.log(
+                  `Processed SQS message for ${functionName}`,
+                );
 
-            if (!resp.FunctionError) {
-              await this.sqsClient
-                ?.deleteMessageBatch({
-                  Entries: messages.Messages.map(
-                    ({ MessageId: Id, ReceiptHandle }) => ({
-                      Id: Id as string,
-                      ReceiptHandle: ReceiptHandle as string,
-                    }),
-                  ),
-                  QueueUrl: queueUrl.QueueUrl,
-                })
-                .promise();
-            }
-          } catch (error) {
-            this.serverless.cli.log(
-              `SQS Offline - Lambda [${
-                params.FunctionName
-              }] failed - Message: ${(error as Error).message}`,
-            );
-          }
+                (messages.Messages || []).forEach((message) => {
+                  this.sqsClient
+                    ?.deleteMessage({
+                      QueueUrl: queueUrl.QueueUrl as string,
+                      ReceiptHandle: message.ReceiptHandle as string,
+                    })
+                    .promise();
+                });
+
+                this.sqsClient?.deleteMessage();
+              }
+            })
+            .catch((error) => {
+              this.serverless.cli.log(
+                `SQS Offline - Lambda [${
+                  params.FunctionName
+                }] failed - Message: ${(error as Error).message}`,
+              );
+            });
         }
       }
 
