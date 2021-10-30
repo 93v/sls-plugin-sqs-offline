@@ -291,16 +291,18 @@ aws {
                   Entries: messages.Messages.map(
                     ({ MessageId: Id, ReceiptHandle }) => ({
                       Id: Id as string,
-                      ReceiptHandle: ReceiptHandle as string
-                    })
+                      ReceiptHandle: ReceiptHandle as string,
+                    }),
                   ),
-                  QueueUrl: queueUrl.QueueUrl
+                  QueueUrl: queueUrl.QueueUrl,
                 })
                 .promise();
             }
           } catch (error) {
             this.serverless.cli.log(
-              `SQS Offline - Lambda [${params.FunctionName}] failed - Message: ${(error as any).message}`,
+              `SQS Offline - Lambda [${
+                params.FunctionName
+              }] failed - Message: ${(error as Error).message}`,
             );
           }
         }
