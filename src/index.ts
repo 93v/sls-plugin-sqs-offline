@@ -278,7 +278,7 @@ aws {
 
           const params = {
             FunctionName: `${this.serverless.service["service"]}-${this.serverless.service.provider.stage}-${functionName}`,
-            InvocationType: "RequestResponse", // get lambda response to know if there was an error or not
+            InvocationType: "RequestResponse",
             Payload: JSON.stringify(sqsEvent),
           };
 
@@ -286,25 +286,55 @@ aws {
             .invoke(params)
             .promise()
             .then((response) => {
-              if (response.StatusCode !== 200) {
+              if (response.StatusCode !== 200 || response.FunctionError) {
                 this.serverless.cli.log(
                   `Error while processing SQS message for ${functionName}`,
                 );
+                this.serverless.cli.log(response.Payload?.toString() || "");
               } else {
-                this.serverless.cli.log(
-                  `Processed SQS message for ${functionName}`,
-                );
+                const itemsToRetain: string[] = [];
+
+                const payloadString = response.Payload;
+                if (payloadString) {
+                  try {
+                    const payload = JSON.parse(payloadString.toString());
+                    if (
+                      payload.batchItemFailures &&
+                      Array.isArray(payload.batchItemFailures)
+                    ) {
+                      payload.batchItemFailures.forEach(
+                        (item: { itemIdentifier?: string }) => {
+                          if (item.itemIdentifier) {
+                            itemsToRetain.push(item.itemIdentifier);
+                          }
+                        },
+                      );
+                    }
+                  } catch (error) {
+                    this.serverless.cli.log(
+                      `Error while parsing response from lambda for ${functionName}`,
+                    );
+                    this.serverless.cli.log((error as Error).message);
+                  }
+                }
 
                 (messages.Messages || []).forEach((message) => {
-                  this.sqsClient
-                    ?.deleteMessage({
-                      QueueUrl: queueUrl.QueueUrl as string,
-                      ReceiptHandle: message.ReceiptHandle as string,
-                    })
-                    .promise();
-                });
+                  if (
+                    message.MessageId &&
+                    itemsToRetain.includes(message.MessageId)
+                  ) {
+                    return;
+                  }
 
-                this.sqsClient?.deleteMessage();
+                  if (message.ReceiptHandle && queueUrl.QueueUrl) {
+                    this.sqsClient
+                      ?.deleteMessage({
+                        QueueUrl: queueUrl.QueueUrl,
+                        ReceiptHandle: message.ReceiptHandle,
+                      })
+                      .promise();
+                  }
+                });
               }
             })
             .catch((error) => {

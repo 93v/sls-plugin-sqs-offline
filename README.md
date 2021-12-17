@@ -47,27 +47,30 @@ To configure SQS Offline, add a `sqs` section like this to your
 ```yml
 custom:
   sqs:
-    # TODO: Implement this
-    # If you only want to use SQS Offline in some stages, declare them here
-    stages:
-      - dev
     start:
-      # Here you cane use all of the command line options described at
-      # https://docs.aws.amazon.com/amazonSQS/latest/developerguide/SQSLocal.UsageNotes.html
-      cors: "*" # Enables support for cross-origin resource sharing (CORS) for JavaScript. You must provide a comma-separated "allow" list of specific domains. The default setting for [cors] is an asterisk (*), which allows public access.
-      dbPath: "/tmp" # The directory where SQS writes its database file. If you don't specify this option, the file is written to the current directory. You can't specify both [dbPath] and [inMemory] at once.
-      delayTransientStatuses: true # Causes SQS to introduce delays for certain operations. SQS (Downloadable Version) can perform some tasks almost instantaneously, such as create/update/delete operations on tables and indexes. However, the SQS service requires more time for these tasks. Setting this parameter helps SQS running on your computer simulate the behavior of the SQS web service more closely. (Currently, this parameter introduces delays only for global secondary indexes that are in either CREATING or DELETING status.)
-      inMemory: true # SQS runs in memory instead of using a database file. When you stop SQS, none of the data is saved. You can't specify both [dbPath] and [inMemory] at once.
-      optimizeDbBeforeStartup: true # Optimizes the underlying database tables before starting SQS on your computer. You also must specify [dbPath] when you use this parameter.
-      host: localhost # The host that SQS uses to communicate with your application. If you don't specify this option, the default host is localhost
-      port: 8000 # The port number that SQS uses to communicate with your application. If you don't specify this option, the default port is 8000. If port 8000 is unavailable, this command throws an exception. You can use the port option to specify a different port number
-      sharedDb: true # If you specify [sharedDb], SQS uses a single database file instead of separate files for each credential and Region.
+      noStart: false # If true will not start SQS
+      autoCreate: true # Create queues after startup
+      port: 9234 # The port number that SQS uses to communicate with your application. If you don't specify this option, the default port is 9234. If port 9234 is unavailable, this command throws an exception. You can use the port option to specify a different port number
+      statsPort: 9235 # The port number that SQS uses to host statistics UI. If you don't specify this option, the default port is 9235. If port 9235 is unavailable, this command throws an exception. You can use the statsPort option to specify a different port number
+      host: "localhost" # The hostname that SQS uses to communicate with your application. If you don't specify this option, the default hostname is localhost.
+      region: "local" # The region that SQS is mocked to run in. If you don't specify this option, the default region is "local".
+      accountId: "000000000000" # The AWS account ID that you want to use when mocking the SQS service. If you don't specify this option, the default account ID is "000000000000".
+      accessKeyId: "localAwsAccessKeyId" # The AWS access key ID that you want to use when mocking the SQS service. If you don't specify this option, the default access key ID is "localAwsAccessKeyId".
+      secretAccessKey: "localAwsSecretAccessKey" # The AWS secret access key that you want to use when mocking the SQS service. If you don't specify this option, the default secret access key is "localAwsSecretAccessKey".
+    stream:
+      readInterval: 500 # The interval, in milliseconds, that the application reads messages from the queue. If you don't specify this option, the default value is 500.
+```
 
-      # Some java -Xms arguments can also be provided as configs
-      heapInitial: "2048m" # Initial heap size for [java -Xms] arguments
-      heapMax: "1g" # Maximum heap size for [java -Xmx] arguments
+## Recommended configuration
 
-      # The plugin itself has a few helpful configuration options
-      migrate: true # After starting SQS local, create SQS tables from the current serverless configuration.
-      noStart: false # Does not start the SQS. This option is useful if you already have a running instance of SQS locally
+The configuration below is the minimal recommended configuration.
+
+```yml
+custom:
+  sqs:
+    start:
+      autoCreate: true
+      port: 9234
+    stream:
+      readInterval: 1000
 ```
