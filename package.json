@@ -75,7 +75,7 @@
   "dependencies": {
     "aws-sdk": "^2.1116.0",
     "dotenv-cli": "^5.1.0",
-    "serverless": "^2.72.3",
+    "serverless": "^3.15.0",
     "tcp-port-used": "^1.0.2"
   },
   "release": {
