@@ -4,7 +4,7 @@ import { ChildProcess, spawn } from "child_process";
 import { writeFileSync } from "fs";
 import { join } from "path";
 import Serverless from "serverless";
-import { waitUntilUsed } from "tcp-port-used";
+import { waitUntilUsedOnHost } from "tcp-port-used";
 
 import { IStacksMap, Stack } from "../types/additional-stack";
 import { Provider } from "../types/provider";
@@ -13,6 +13,7 @@ import { Queue, SQSConfig, SQSLaunchOptions } from "../types/sqs";
 
 const DEFAULT_PORT = "9234";
 const DEFAULT_STATS_PORT = "9235";
+const DEFAULT_HOST = "localhost";
 const DEFAULT_REGION = "local";
 const DEFAULT_ACCOUNT = "000000000000";
 const DEFAULT_READ_INTERVAL = 500;
@@ -55,6 +56,7 @@ class ServerlessSQSOfflinePlugin {
   private buildConfig = (
     port = DEFAULT_PORT,
     statsPort = DEFAULT_STATS_PORT,
+    host = DEFAULT_HOST,
     region = DEFAULT_REGION,
     accountId = DEFAULT_ACCOUNT,
     sqsLimits: "relaxed" | "strict" = "strict",
@@ -65,7 +67,7 @@ class ServerlessSQSOfflinePlugin {
 # Used to create the queue URL (may be different from bind address!)
 node-address {
   protocol = http
-  host = localhost
+  host = ${host}
   port = ${port}
   context-path = ""
 }
@@ -109,12 +111,13 @@ aws {
 
     const port = (options.port || DEFAULT_PORT).toString();
     const statsPort = (options.statsPort || DEFAULT_STATS_PORT).toString();
+    const host = (options.host || DEFAULT_HOST).toString();
 
     const SQS_LOCAL_PATH = join(__dirname, "../bin");
 
     writeFileSync(
       `${SQS_LOCAL_PATH}/local.conf`,
-      this.buildConfig(port, statsPort),
+      this.buildConfig(port, statsPort, host),
     );
 
     const args = [];
@@ -162,7 +165,7 @@ aws {
       });
     });
 
-    return { proc, port, statsPort };
+    return { proc, port, statsPort, host };
   };
 
   private killSQSProcess = (options: SQSLaunchOptions) => {
@@ -245,7 +248,10 @@ aws {
 
         if (messages?.Messages) {
           const lambdaParams: ClientConfiguration = {
-            endpoint: `http://localhost:${
+            endpoint: `http://${
+              this.serverless.service.custom["serverless-offline"].host ||
+              "localhost"
+            }:${
               this.serverless.service.custom["serverless-offline"].lambdaPort ||
               3002
             }`,
@@ -357,7 +363,7 @@ aws {
         "SQS Offline - [noStart] options is true. Will not start.",
       );
     } else {
-      const { port, proc, statsPort } = await this.spawnSQSProcess(
+      const { port, proc, statsPort, host } = await this.spawnSQSProcess(
         this.sqsConfig.start,
       );
       proc.on("close", (code) => {
@@ -366,7 +372,7 @@ aws {
         );
       });
       this.serverless.cli.log(
-        `SQS Offline - Started on port ${port}. Visit: http://localhost:${statsPort} for stats`,
+        `SQS Offline - Started on port ${port}. Visit: http://${host}:${statsPort} for stats`,
       );
     }
 
@@ -379,7 +385,7 @@ aws {
 
     const clientConfig: SQS.ClientConfiguration = {
       accessKeyId: this.sqsConfig.start.accessKeyId || "localAwsAccessKeyId",
-      endpoint: `http://${this.sqsConfig.start.host || "localhost"}:${
+      endpoint: `http://${this.sqsConfig.start.host || DEFAULT_HOST}:${
         this.sqsConfig.start.port || DEFAULT_PORT
       }`,
       region: this.sqsConfig.start.region || "local",
@@ -389,8 +395,9 @@ aws {
 
     this.serverless.cli.log(JSON.stringify(clientConfig, null, 2));
 
-    await waitUntilUsed(
+    await waitUntilUsedOnHost(
       Number(this.sqsConfig.start.port || DEFAULT_PORT),
+      this.sqsConfig.start.host || DEFAULT_HOST,
       1000,
       30_000,
     );
