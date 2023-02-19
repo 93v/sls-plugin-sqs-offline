@@ -52,7 +52,7 @@ custom:
       autoCreate: true # Create queues after startup
       port: 9234 # The port number that SQS uses to communicate with your application. If you don't specify this option, the default port is 9234. If port 9234 is unavailable, this command throws an exception. You can use the port option to specify a different port number
       statsPort: 9235 # The port number that SQS uses to host statistics UI. If you don't specify this option, the default port is 9235. If port 9235 is unavailable, this command throws an exception. You can use the statsPort option to specify a different port number
-      host: "localhost" # The hostname that SQS uses to communicate with your application. If you don't specify this option, the default hostname is localhost.
+      host: "127.0.0.1" # The hostname that SQS uses to communicate with your application. If you don't specify this option, the default hostname is "127.0.0.1".
       region: "local" # The region that SQS is mocked to run in. If you don't specify this option, the default region is "local".
       accountId: "000000000000" # The AWS account ID that you want to use when mocking the SQS service. If you don't specify this option, the default account ID is "000000000000".
       accessKeyId: "localAwsAccessKeyId" # The AWS access key ID that you want to use when mocking the SQS service. If you don't specify this option, the default access key ID is "localAwsAccessKeyId".

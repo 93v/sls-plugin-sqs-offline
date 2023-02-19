@@ -5,6 +5,7 @@ import { writeFileSync } from "fs";
 import { join } from "path";
 import Serverless from "serverless";
 import { waitUntilUsedOnHost } from "tcp-port-used";
+import { setTimeout } from "timers/promises";
 
 import { IStacksMap, Stack } from "../types/additional-stack";
 import { Provider } from "../types/provider";
@@ -13,13 +14,10 @@ import { Queue, SQSConfig, SQSLaunchOptions } from "../types/sqs";
 
 const DEFAULT_PORT = "9234";
 const DEFAULT_STATS_PORT = "9235";
-const DEFAULT_HOST = "localhost";
+const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_REGION = "local";
 const DEFAULT_ACCOUNT = "000000000000";
 const DEFAULT_READ_INTERVAL = 500;
-
-const pause = async (duration: number) =>
-  new Promise((r) => setTimeout(r, duration));
 
 class ServerlessSQSOfflinePlugin {
   public readonly commands: Record<string, ServerlessPluginCommand>;
@@ -30,9 +28,15 @@ class ServerlessSQSOfflinePlugin {
   private sqsConfig: SQSConfig;
   private sqsClient?: SQS;
   private sqsInstances: Record<string, ChildProcess> = {};
+  private readonly log: (message: string) => void;
 
-  public constructor(private serverless: Serverless) {
+  public constructor(
+    private serverless: Serverless,
+    _options: any,
+    { log }: { log: (message: string) => void },
+  ) {
     this.provider = this.serverless.getProvider("aws");
+    this.log = log;
 
     this.commands = {};
 
@@ -181,9 +185,7 @@ aws {
       return;
     }
 
-    this.serverless.cli.log(
-      `Create stream for ${functionName} on ${q.queueName}`,
-    );
+    this.log(`Create stream for ${functionName} on ${q.queueName}`);
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -250,7 +252,7 @@ aws {
           const lambdaParams: ClientConfiguration = {
             endpoint: `http://${
               this.serverless.service.custom["serverless-offline"].host ||
-              "localhost"
+              "127.0.0.1"
             }:${
               this.serverless.service.custom["serverless-offline"].lambdaPort ||
               3002
@@ -293,10 +295,10 @@ aws {
             .promise()
             .then((response) => {
               if (response.StatusCode !== 200 || response.FunctionError) {
-                this.serverless.cli.log(
+                this.log(
                   `Error while processing SQS message for ${functionName}`,
                 );
-                this.serverless.cli.log(response.Payload?.toString() || "");
+                this.log(response.Payload?.toString() || "");
               } else {
                 const itemsToRetain: string[] = [];
 
@@ -317,10 +319,10 @@ aws {
                       );
                     }
                   } catch (error) {
-                    this.serverless.cli.log(
+                    this.log(
                       `Error while parsing response from lambda for ${functionName}`,
                     );
-                    this.serverless.cli.log((error as Error).message);
+                    this.log((error as Error).message);
                   }
                 }
 
@@ -344,7 +346,7 @@ aws {
               }
             })
             .catch((error) => {
-              this.serverless.cli.log(
+              this.log(
                 `SQS Offline - Lambda [${
                   params.FunctionName
                 }] failed - Message: ${(error as Error).message}`,
@@ -353,31 +355,29 @@ aws {
         }
       }
 
-      await pause(this.sqsConfig.stream?.readInterval || DEFAULT_READ_INTERVAL);
+      await setTimeout(
+        this.sqsConfig.stream?.readInterval || DEFAULT_READ_INTERVAL,
+      );
     }
   };
 
   private startSQS = async () => {
     if (this.sqsConfig.start.noStart) {
-      this.serverless.cli.log(
-        "SQS Offline - [noStart] options is true. Will not start.",
-      );
+      this.log("SQS Offline - [noStart] options is true. Will not start.");
     } else {
       const { port, proc, statsPort, host } = await this.spawnSQSProcess(
         this.sqsConfig.start,
       );
       proc.on("close", (code) => {
-        this.serverless.cli.log(
-          `SQS Offline - Failed to start with code ${code}`,
-        );
+        this.log(`SQS Offline - Failed to start with code ${code}`);
       });
-      this.serverless.cli.log(
+      this.log(
         `SQS Offline - Started on port ${port}. Visit: http://${host}:${statsPort} for stats`,
       );
     }
 
     if (!this.sqsConfig.start.autoCreate) {
-      this.serverless.cli.log(
+      this.log(
         "SQS Offline - [autoCreate] options is not true. Will not create queues.",
       );
       return;
@@ -393,7 +393,7 @@ aws {
         this.sqsConfig.start.secretAccessKey || "localAwsSecretAccessKey",
     };
 
-    this.serverless.cli.log(JSON.stringify(clientConfig, null, 2));
+    this.log(JSON.stringify(clientConfig, null, 2));
 
     await waitUntilUsedOnHost(
       Number(this.sqsConfig.start.port || DEFAULT_PORT),
@@ -443,7 +443,7 @@ aws {
 
         await Promise.all(
           events.map(async (event) => {
-            const sqs: null | Queue = event["sqs"];
+            const sqs = event["sqs"] as Queue | undefined;
 
             if (sqs == null) {
               return;
@@ -458,7 +458,7 @@ aws {
 
   private stopSQS = async () => {
     this.killSQSProcess(this.sqsConfig.start);
-    this.serverless.cli.log("SQS Offline - Stopped");
+    this.log("SQS Offline - Stopped");
   };
 
   private createQueue = async (sqsClient: SQS, queue: any) => {
@@ -500,12 +500,10 @@ aws {
           },
         })
         .promise();
-      this.serverless.cli.log(`SQS Offline - Queue [${QueueName}] created`);
+      this.log(`SQS Offline - Queue [${QueueName}] created`);
     } catch (error) {
       if ((error as any).code === "ResourceInUseException") {
-        this.serverless.cli.log(
-          `SQS Offline - Queue [${QueueName}] already exists`,
-        );
+        this.log(`SQS Offline - Queue [${QueueName}] already exists`);
       } else {
         throw error;
       }
