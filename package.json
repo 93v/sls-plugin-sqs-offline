@@ -53,7 +53,7 @@
     "@types/node": "^18.14.0",
     "@types/serverless": "^3.12.10",
     "@types/tcp-port-used": "^1.0.1",
-    "@typescript-eslint/eslint-plugin": "^5.52.0",
+    "@typescript-eslint/eslint-plugin": "^6.20.0",
     "@typescript-eslint/parser": "^5.52.0",
     "cross-env": "^7.0.3",
     "eslint": "^8.34.0",
