@@ -74,7 +74,7 @@
   ],
   "dependencies": {
     "dotenv-cli": "^7.3.0",
-    "serverless": "^3.38.0",
+    "serverless": "^4.22.0",
     "tcp-port-used": "^1.0.2"
   },
   "release": {
